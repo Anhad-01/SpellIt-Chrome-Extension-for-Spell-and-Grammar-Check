@@ -1,22 +1,87 @@
 
 // Initialize dependencies
-(async function () {
-    await spellChecker.init();
-})();
+let isExtensionEnabled = true;
+
+const initExtension = async () => {
+    // Check global toggle
+    const stored = await chrome.storage.local.get(['enabled', 'language']);
+    if (stored.enabled === false) {
+        isExtensionEnabled = false;
+        overlayManager.teardown();
+        return;
+    }
+
+    // Check language
+    const lang = stored.language || 'en_US';
+    await spellChecker.init(lang);
+
+    // Start observing
+    overlayManager.start();
+};
+
+// Listen for storage changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local') {
+        if (changes.enabled) {
+            isExtensionEnabled = changes.enabled.newValue;
+            if (isExtensionEnabled) {
+                initExtension();
+            } else {
+                overlayManager.teardown();
+            }
+        }
+        if (changes.language && isExtensionEnabled) {
+            spellChecker.init(changes.language.newValue).then(() => {
+                // Re-check all active inputs
+                overlayManager.recheckAll();
+            });
+        }
+    }
+});
 
 class OverlayManager {
     constructor() {
         this.overlays = new Map(); // Target element -> Overlay element
         this.debouncedCheck = this.debounce(this.checkInput.bind(this), 500);
+        this.observer = null;
+        this.activeTarget = null;
+    }
 
+    start() {
         this.setupObservers();
+        // Check current focused element
+        if (document.activeElement) {
+            this.handleFocus(document.activeElement);
+        }
+    }
+
+    teardown() {
+        // Remove all overlays
+        this.overlays.forEach((overlay) => overlay.remove());
+        this.overlays.clear();
+        // Remove listeners (optional if we want to be super clean, but typically just stopping logic is enough)
     }
 
     setupObservers() {
+        const _this = this;
         document.addEventListener('focusin', (e) => this.handleFocus(e.target));
         document.addEventListener('input', (e) => this.handleInput(e.target));
         document.addEventListener('scroll', (e) => this.handleScroll(e.target), true);
         window.addEventListener('resize', () => this.repositionAll());
+
+        // Tooltip Dismissal Logic
+        // 1. Click outside
+        document.addEventListener('mousedown', (e) => {
+            // If click is not inside tooltip and not inside an error span, hide tooltip
+            if (!e.target.closest('.spellit-tooltip') && !e.target.classList.contains('spellit-error') && !e.target.classList.contains('spellit-grammar-error')) {
+                tooltip.hide();
+            }
+        });
+
+        // 2. Scroll (global or parent) -> hide tooltip
+        document.addEventListener('scroll', () => {
+            if (tooltip.isVisible()) tooltip.hide();
+        }, true);
     }
 
     debounce(func, wait) {
@@ -36,13 +101,21 @@ class OverlayManager {
     }
 
     handleFocus(target) {
+        if (!isExtensionEnabled) return;
         if (!this.isValidTarget(target)) return;
+
+        this.activeTarget = target;
         this.createOrUpdateOverlay(target);
         this.checkInput(target);
     }
 
     handleInput(target) {
+        if (!isExtensionEnabled) return;
         if (!this.isValidTarget(target)) return;
+
+        // Dismiss tooltip on edit
+        tooltip.hide();
+
         this.updateOverlayContent(target);
         this.debouncedCheck(target);
     }
@@ -53,11 +126,21 @@ class OverlayManager {
             overlay.scrollTop = target.scrollTop;
             overlay.scrollLeft = target.scrollLeft;
         }
+        tooltip.hide(); // Dismiss on scroll
     }
 
     repositionAll() {
         this.overlays.forEach((overlay, target) => {
             this.syncStyles(target, overlay);
+        });
+        tooltip.hide();
+    }
+
+    recheckAll() {
+        this.overlays.forEach((overlay, target) => {
+            if (document.contains(target)) {
+                this.checkInput(target);
+            }
         });
     }
 
@@ -74,38 +157,43 @@ class OverlayManager {
     }
 
     syncStyles(target, overlay) {
-        const style = window.getComputedStyle(target);
-        const rect = target.getBoundingClientRect();
+        try {
+            const style = window.getComputedStyle(target);
+            const rect = target.getBoundingClientRect();
 
-        const properties = [
-            'font-family', 'font-size', 'font-weight', 'font-style',
-            'line-height', 'letter-spacing', 'text-align',
-            'text-transform', 'text-indent', 'white-space',
-            'word-break', 'word-spacing', 'overflow-wrap',
-            'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-            'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
-            'box-sizing'
-        ];
+            const properties = [
+                'font-family', 'font-size', 'font-weight', 'font-style',
+                'line-height', 'letter-spacing', 'text-align',
+                'text-transform', 'text-indent', 'white-space',
+                'word-break', 'word-spacing', 'overflow-wrap',
+                'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+                'box-sizing'
+            ];
 
-        properties.forEach(prop => {
-            overlay.style[prop] = style[prop];
-        });
+            properties.forEach(prop => {
+                overlay.style[prop] = style[prop];
+            });
 
-        overlay.style.width = rect.width + 'px';
-        overlay.style.height = rect.height + 'px';
+            overlay.style.width = rect.width + 'px';
+            overlay.style.height = rect.height + 'px';
 
-        const scrollX = window.scrollX;
-        const scrollY = window.scrollY;
-        overlay.style.top = (rect.top + scrollY) + 'px';
-        overlay.style.left = (rect.left + scrollX) + 'px';
+            const scrollX = window.scrollX;
+            const scrollY = window.scrollY;
+            overlay.style.top = (rect.top + scrollY) + 'px';
+            overlay.style.left = (rect.left + scrollX) + 'px';
 
-        overlay.scrollTop = target.scrollTop;
-        overlay.scrollLeft = target.scrollLeft;
+            overlay.scrollTop = target.scrollTop;
+            overlay.scrollLeft = target.scrollLeft;
 
-        overlay.style.display = style.display === 'none' ? 'none' : 'block';
+            overlay.style.display = style.display === 'none' ? 'none' : 'block';
+        } catch (e) {
+            // Element might be detached
+        }
     }
 
     async checkInput(target) {
+        if (!isExtensionEnabled) return;
         if (!this.isValidTarget(target)) return;
 
         const text = target.value;
@@ -174,11 +262,29 @@ class OverlayManager {
                 e.preventDefault();
 
                 const suggestions = err.suggestions || err.replacements || [];
+                // Word for actions is either the error word or the text content
+                const wordForAction = err.word || errorText;
 
                 const rect = span.getBoundingClientRect();
-                tooltip.show(rect.left, rect.bottom, suggestions, (replacement) => {
-                    this.replaceText(target, err.index, err.length, replacement);
-                });
+
+                // Show tooltip with enhanced callbacks
+                tooltip.show(
+                    rect.left,
+                    rect.bottom,
+                    suggestions,
+                    (replacement) => {
+                        this.replaceText(target, err.index, err.length, replacement);
+                    },
+                    (wordToIgnore) => {
+                        spellChecker.ignoreWord(wordToIgnore);
+                        this.checkInput(target); // Re-check to remove highlight
+                    },
+                    (wordToAdd) => {
+                        spellChecker.addToDictionary(wordToAdd);
+                        this.checkInput(target); // Re-check to remove highlight
+                    },
+                    wordForAction
+                );
             });
 
             overlay.appendChild(span);
@@ -210,3 +316,5 @@ class OverlayManager {
 }
 
 const overlayManager = new OverlayManager();
+
+initExtension();

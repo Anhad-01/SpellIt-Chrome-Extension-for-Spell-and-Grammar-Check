@@ -14,26 +14,17 @@
 }
 
 .spellit-error {
-    border-bottom: 2px solid red; /* Spelling error */
+    border-bottom: 2px solid red;
+    /* Spelling error */
     cursor: pointer;
-    pointer-events: auto; /* Allow clicking on the error underline? No, usually handled by checking cursor position or events on textarea. But if overlay is on top... */
-}
-
-/* Actually, if overlay is on top, we want pointer-events: none generally. 
-   But how to detect hover on the error? 
-   We might need the overlay to be click-through, but listen to mousemove on the textarea and coordinate? is tricky.
-   Easier: Overlay is pointer-events: none. 
-   We calculate cursor position in textarea or use range APIs. 
-   
-   Alternative: The overlay has pointer-events: none. BUT the specific error spans have pointer-events: auto.
-*/
-
-.spellit-error {
-    pointer-events: auto; 
+    pointer-events: auto;
 }
 
 .spellit-grammar-error {
-    border-bottom: 2px solid orange; /* Grammar error */
+    border-bottom: 2px solid orange;
+    /* Grammar error */
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 /* Tooltip */
@@ -41,28 +32,47 @@
     position: absolute;
     background: white;
     border: 1px solid #ccc;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    border-radius: 4px;
-    padding: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    padding: 6px 0;
+    /* Padding handled by children */
     z-index: 10000;
-    font-family: sans-serif;
-    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px;
     color: #333;
-    min-width: 100px;
+    min-width: 150px;
+    max-width: 250px;
 }
 
 .spellit-suggestion {
-    padding: 4px 8px;
+    padding: 6px 12px;
     cursor: pointer;
     display: block;
+    font-weight: 500;
+    color: #000;
 }
 
 .spellit-suggestion:hover {
-    background-color: #f0f0f0;
+    background-color: #f0f0f5;
+    color: #0066cc;
 }
 
 .spellit-no-suggestions {
-    padding: 4px 8px;
+    padding: 6px 12px;
     color: #888;
     font-style: italic;
+    font-size: 12px;
+}
+
+.spellit-action {
+    padding: 6px 12px;
+    cursor: pointer;
+    display: block;
+    color: #555;
+    font-size: 12px;
+}
+
+.spellit-action:hover {
+    background-color: #f0f0f5;
+    color: #333;
 }
