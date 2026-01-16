@@ -3,14 +3,26 @@ class Rules {
         this.rules = [
             this.checkDoubleSpaces,
             this.checkRepeatedWords,
-            this.checkCapitalization
+            this.checkCapitalization,
+            this.checkContractions,
+            this.checkArticles
         ];
+
+        this.contractionsMap = {
+            "dont": "don't",
+            "cant": "can't",
+            "wont": "won't",
+            "im": "I'm",
+            "youre": "you're",
+            "theyre": "they're"
+            // "its": "it's"
+        };
     }
 
     check(text) {
         let errors = [];
         this.rules.forEach(rule => {
-            errors = errors.concat(rule(text));
+            errors = errors.concat(rule.call(this, text));
         });
         return errors;
     }
@@ -26,8 +38,7 @@ class Rules {
                 message: 'Multiple spaces detected.',
                 index: match.index,
                 length: match[0].length,
-                replacements: [' '], // Suggestion: Single space
-                suggestions: [' '] // Unified prop
+                suggestions: [' ']
             });
         }
         return errors;
@@ -45,7 +56,6 @@ class Rules {
                 message: 'Repeated word.',
                 index: match.index,
                 length: match[0].length,
-                replacements: [match[1]], // Suggestion: The word once
                 suggestions: [match[1]]
             });
         }
@@ -73,12 +83,91 @@ class Rules {
                 message: 'Sentence should start with a capital letter.',
                 index: absoluteIndex,
                 length: word.length,
-                replacements: [suggestion],
                 suggestions: [suggestion]
             });
         }
         return errors;
     }
+
+    checkContractions(text) {
+        // Keys as alternatives. \b around them.
+        const keys = Object.keys(this.contractionsMap).join('|');
+        const regex = new RegExp(`\\b(${keys})\\b`, 'gi');
+        let match;
+        const errors = [];
+
+        while ((match = regex.exec(text)) !== null) {
+            const word = match[0]; // matched word (e.g. "dont", "DONT")
+            const lowerKey = word.toLowerCase();
+            const replacement = this.contractionsMap[lowerKey];
+
+            if (replacement) {
+                errors.push({
+                    type: 'grammar',
+                    rule: 'Contraction',
+                    message: 'Missing contraction.',
+                    index: match.index,
+                    length: word.length,
+                    suggestions: [replacement]
+                });
+            }
+        }
+        return errors;
+    }
+
+    checkArticles(text) {
+        // a <vowel-sound> or an <consonant-sound>
+        // Simplified: Vowels a, e, i, o, u.
+        // Regex to find "a <word>" or "an <word>"
+        const regex = /\b(a|an)\s+(\w+)\b/gi;
+        let match;
+        const errors = [];
+
+        const vowels = ['a', 'e', 'i', 'o', 'u']; // Simple heuristic
+
+        while ((match = regex.exec(text)) !== null) {
+            const article = match[1]; // a or an
+            const nextWord = match[2];
+            const lowerNext = nextWord.toLowerCase();
+            const startsWithVowel = vowels.includes(lowerNext.charAt(0));
+
+            const isA = article.toLowerCase() === 'a';
+            const isAn = article.toLowerCase() === 'an';
+
+            // Exception: 'hour' starts with vowel sound (an)
+            // 'university' starts with consonant sound (a)
+            // For this basic version, we stick to requested simple vowel check but maybe add common exceptions if requested.
+            // Requirement said: "Base detection on the starting sound approximation (vowels vs consonants)"
+            // "Limit scope to clear, obvious cases"
+
+            let suggestion = null;
+
+            if (isA && startsWithVowel) {
+                suggestion = 'an';
+            } else if (isAn && !startsWithVowel) {
+                suggestion = 'a';
+            }
+
+            if (suggestion) {
+                // Match case of article
+                if (article[0] === article[0].toUpperCase()) {
+                    suggestion = suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
+                }
+
+                errors.push({
+                    type: 'grammar',
+                    rule: 'Article',
+                    message: `Incorrect article usage.`,
+                    index: match.index,
+                    length: article.length, // only highlight article
+                    suggestions: [suggestion]
+                });
+            }
+        }
+        return errors;
+    }
+
+
 }
 
 const grammarRules = new Rules();
