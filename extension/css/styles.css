@@ -1,0 +1,68 @@
+/* Spellit Styles */
+
+.spellit-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    overflow: hidden;
+    background: transparent;
+    color: transparent;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    z-index: 9999;
+}
+
+.spellit-error {
+    border-bottom: 2px solid red; /* Spelling error */
+    cursor: pointer;
+    pointer-events: auto; /* Allow clicking on the error underline? No, usually handled by checking cursor position or events on textarea. But if overlay is on top... */
+}
+
+/* Actually, if overlay is on top, we want pointer-events: none generally. 
+   But how to detect hover on the error? 
+   We might need the overlay to be click-through, but listen to mousemove on the textarea and coordinate? is tricky.
+   Easier: Overlay is pointer-events: none. 
+   We calculate cursor position in textarea or use range APIs. 
+   
+   Alternative: The overlay has pointer-events: none. BUT the specific error spans have pointer-events: auto.
+*/
+
+.spellit-error {
+    pointer-events: auto; 
+}
+
+.spellit-grammar-error {
+    border-bottom: 2px solid orange; /* Grammar error */
+}
+
+/* Tooltip */
+.spellit-tooltip {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    border-radius: 4px;
+    padding: 5px;
+    z-index: 10000;
+    font-family: sans-serif;
+    font-size: 14px;
+    color: #333;
+    min-width: 100px;
+}
+
+.spellit-suggestion {
+    padding: 4px 8px;
+    cursor: pointer;
+    display: block;
+}
+
+.spellit-suggestion:hover {
+    background-color: #f0f0f0;
+}
+
+.spellit-no-suggestions {
+    padding: 4px 8px;
+    color: #888;
+    font-style: italic;
+}

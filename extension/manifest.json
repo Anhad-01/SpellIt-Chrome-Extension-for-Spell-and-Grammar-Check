@@ -1,0 +1,39 @@
+{
+    "manifest_version": 3,
+    "name": "SpellIt - Offline Spell & Grammar Checker",
+    "version": "1.0.0",
+    "description": "Offline spell and grammar checker for Chrome.",
+    "permissions": [
+        "activeTab",
+        "scripting"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "lib/typo.js",
+                "js/spellChecker.js",
+                "js/rules.js",
+                "js/tooltip.js",
+                "js/content.js"
+            ],
+            "css": [
+                "css/styles.css"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "assets/en_US.aff",
+                "assets/en_US.dic"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
