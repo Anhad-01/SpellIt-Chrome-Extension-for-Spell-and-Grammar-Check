@@ -10,8 +10,21 @@ class Tooltip {
         document.body.appendChild(this.element);
     }
 
-    show(x, y, suggestions, onSelect, onIgnore, onAddToDict, word) {
+    show(x, y, suggestions, onSelect, onIgnore, onAddToDict, word, label) {
         this.element.innerHTML = '';
+
+        // Label (optional)
+        if (label) {
+            const labelDiv = document.createElement('div');
+            labelDiv.style.padding = '4px 12px';
+            labelDiv.style.fontSize = '10px';
+            labelDiv.style.fontWeight = 'bold';
+            labelDiv.style.color = '#777';
+            labelDiv.style.textTransform = 'uppercase';
+            labelDiv.style.letterSpacing = '0.5px';
+            labelDiv.textContent = label;
+            this.element.appendChild(labelDiv);
+        }
 
         // 1. Suggestions
         if (suggestions.length === 0) {

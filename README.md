@@ -19,6 +19,13 @@ SpellIt goes beyond simple spell checking with rule-based heuristics:
 - **Contractions**: Suggests missing contractions (e.g., "dont" → "don't").
 - **Articles**: Checks for incorrect indefinite article usage (e.g., "a apple" → "an apple").
 
+### Advanced Grammar
+- **LanguageTool Integration**: Connect to a local LanguageTool server for advanced grammar and style checking.
+    - **On-Demand**: Triggers only when you click "Check Grammar".
+    - **Context-Aware**: Checks the current sentence relative to the cursor.
+    - **Privacy-Centric**: Only communicates with your local server (`localhost`).
+    - **Visual Distinction**: Errors marked with a blue underline.
+
 ### Tools & Actions
 - **Smart Tooltip**: Click any underlined word to see suggestions.
     - **Toggle Behavior**: Click to show, click again to hide. Dismisses automatically when you type or scroll.
@@ -42,6 +49,16 @@ SpellIt makes **zero network requests**.
 4.  Click **Load unpacked**.
 5.  Select the `extension` folder from this project.
 
+### Setting up Local LanguageTool
+1.  Download the **LanguageTool Desktop** or **Server** (`.jar`).
+2.  Run the server:
+    ```bash
+    java -cp languagetool-server.jar org.languagetool.server.HTTPServer --port 8081 --allow-origin "*"
+    ```
+    *Ensure it's running on port 8081.*
+3.  In the SpellIt extension popup, enable **Advanced Grammar**.
+4.  Focus any text field, type, and click the **Check Grammar** button to verify.
+
 ## Architecture
 
 - **manifest.json**: Manifest V3 compliant configuration.
@@ -55,4 +72,5 @@ SpellIt makes **zero network requests**.
 
 - **Dictionaries**: Located in `extension/assets/`. Includes `.dic` and `.aff` files.
 - **Library**: Uses `Typo.js` for spell checking logic.
+- **LanguageTool**: Managed by `js/languageToolService.js`, communicates with local server via HTTP.
 

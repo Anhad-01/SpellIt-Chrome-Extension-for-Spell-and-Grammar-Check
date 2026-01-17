@@ -26,6 +26,7 @@
                 "js/spellChecker.js",
                 "js/rules.js",
                 "js/tooltip.js",
+                "js/languageToolService.js",
                 "js/content.js"
             ],
             "css": [

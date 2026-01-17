@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <style>
         body {
@@ -7,34 +8,42 @@
             padding: 10px;
             font-family: sans-serif;
         }
+
         .control-group {
             margin-bottom: 15px;
         }
+
         label {
             display: block;
             margin-bottom: 5px;
             font-size: 14px;
         }
-        select, button {
+
+        select,
+        button {
             width: 100%;
             padding: 5px;
         }
+
         .toggle-container {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
+
         .switch {
             position: relative;
             display: inline-block;
             width: 34px;
             height: 20px;
         }
-        .switch input { 
+
+        .switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .slider {
             position: absolute;
             cursor: pointer;
@@ -46,6 +55,7 @@
             transition: .4s;
             border-radius: 34px;
         }
+
         .slider:before {
             position: absolute;
             content: "";
@@ -57,19 +67,30 @@
             transition: .4s;
             border-radius: 50%;
         }
-        input:checked + .slider {
+
+        input:checked+.slider {
             background-color: #2196F3;
         }
-        input:checked + .slider:before {
+
+        input:checked+.slider:before {
             transform: translateX(14px);
         }
     </style>
 </head>
+
 <body>
     <div class="control-group toggle-container">
-        <label for="enableToggle" style="margin:0">Enable Spellit</label>
+        <label for="enableToggle" style="margin:0">Enable SpellIt</label>
         <label class="switch">
             <input type="checkbox" id="enableToggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="control-group toggle-container">
+        <label for="enableAdvancedGrammar" style="margin:0">Advanced Grammar (LT)</label>
+        <label class="switch">
+            <input type="checkbox" id="enableAdvancedGrammar">
             <span class="slider"></span>
         </label>
     </div>
@@ -84,4 +105,5 @@
 
     <script src="js/popup.js"></script>
 </body>
+
 </html>

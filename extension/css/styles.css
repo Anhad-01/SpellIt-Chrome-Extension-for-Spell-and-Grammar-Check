@@ -27,6 +27,34 @@
     pointer-events: auto;
 }
 
+.spellit-lt-error {
+    border-bottom: 2px solid blue;
+    /* LanguageTool Grammar error */
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Trigger Button */
+.spellit-trigger-btn {
+    position: absolute;
+    z-index: 10001;
+    padding: 4px 8px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: sans-serif;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+.spellit-trigger-btn:hover {
+    opacity: 1;
+}
+
 /* Tooltip */
 .spellit-tooltip {
     position: absolute;

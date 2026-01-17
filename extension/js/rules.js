@@ -134,12 +134,6 @@ class Rules {
             const isA = article.toLowerCase() === 'a';
             const isAn = article.toLowerCase() === 'an';
 
-            // Exception: 'hour' starts with vowel sound (an)
-            // 'university' starts with consonant sound (a)
-            // For this basic version, we stick to requested simple vowel check but maybe add common exceptions if requested.
-            // Requirement said: "Base detection on the starting sound approximation (vowels vs consonants)"
-            // "Limit scope to clear, obvious cases"
-
             let suggestion = null;
 
             if (isA && startsWithVowel) {
