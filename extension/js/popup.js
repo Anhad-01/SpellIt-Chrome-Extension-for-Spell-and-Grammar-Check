@@ -14,7 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save on change
     enableToggle.addEventListener('change', () => {
         const enabled = enableToggle.checked;
-        chrome.storage.local.set({ enabled });
+        const updates = { enabled };
+
+        if (!enabled && enableAdvancedGrammar.checked) {
+            enableAdvancedGrammar.checked = false;
+            updates.enableAdvancedGrammar = false;
+        }
+
+        chrome.storage.local.set(updates);
     });
 
     languageSelect.addEventListener('change', () => {
