@@ -5,7 +5,8 @@ class Rules {
             this.checkRepeatedWords,
             this.checkCapitalization,
             this.checkContractions,
-            this.checkArticles
+            this.checkArticles,
+            this.checkLowercaseI
         ];
 
         this.contractionsMap = {
@@ -157,6 +158,25 @@ class Rules {
                     suggestions: [suggestion]
                 });
             }
+        }
+        return errors;
+    }
+
+    checkLowercaseI(text) {
+        // Matches solitary "i" surrounded by word boundaries
+        const regex = /\b(i)\b/g;
+        let match;
+        const errors = [];
+
+        while ((match = regex.exec(text)) !== null) {
+            errors.push({
+                type: 'grammar',
+                rule: 'Capitalization',
+                message: "The pronoun 'I' should be capitalized.",
+                index: match.index,
+                length: 1,
+                suggestions: ['I']
+            });
         }
         return errors;
     }

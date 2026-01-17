@@ -247,7 +247,19 @@ class OverlayManager {
         const ltErrors = this.ltErrors.get(target) || [];
         errors = errors.concat(ltErrors);
 
-        errors.sort((a, b) => a.index - b.index);
+        // Prioritize grammar errors (including LT) over spelling errors when they overlap
+        errors.sort((a, b) => {
+            if (a.index !== b.index) {
+                return a.index - b.index;
+            }
+            // If indices are equal, prioritize non-spelling (grammar)
+            const aIsSpelling = a.type === 'spelling';
+            const bIsSpelling = b.type === 'spelling';
+
+            if (aIsSpelling && !bIsSpelling) return 1;
+            if (!aIsSpelling && bIsSpelling) return -1;
+            return 0; // maintain relative order otherwise
+        });
 
         const uniqueErrors = [];
         let lastEnd = -1;
