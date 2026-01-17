@@ -45,6 +45,7 @@ class OverlayManager {
         this.debouncedCheck = this.debounce(this.checkInput.bind(this), 500);
         this.observer = null;
         this.activeTarget = null;
+        this.activeErrorSpan = null; // Track currently active error
     }
 
     start() {
@@ -74,14 +75,19 @@ class OverlayManager {
         document.addEventListener('mousedown', (e) => {
             // If click is not inside tooltip and not inside an error span, hide tooltip
             if (!e.target.closest('.spellit-tooltip') && !e.target.classList.contains('spellit-error') && !e.target.classList.contains('spellit-grammar-error')) {
-                tooltip.hide();
+                this.dismissTooltip();
             }
         });
 
         // 2. Scroll (global or parent) -> hide tooltip
         document.addEventListener('scroll', () => {
-            if (tooltip.isVisible()) tooltip.hide();
+            if (tooltip.isVisible()) this.dismissTooltip();
         }, true);
+    }
+
+    dismissTooltip() {
+        tooltip.hide();
+        this.activeErrorSpan = null;
     }
 
     debounce(func, wait) {
@@ -114,7 +120,7 @@ class OverlayManager {
         if (!this.isValidTarget(target)) return;
 
         // Dismiss tooltip on edit
-        tooltip.hide();
+        this.dismissTooltip();
 
         this.updateOverlayContent(target);
         this.debouncedCheck(target);
@@ -126,14 +132,14 @@ class OverlayManager {
             overlay.scrollTop = target.scrollTop;
             overlay.scrollLeft = target.scrollLeft;
         }
-        tooltip.hide(); // Dismiss on scroll
+        this.dismissTooltip(); // Dismiss on scroll
     }
 
     repositionAll() {
         this.overlays.forEach((overlay, target) => {
             this.syncStyles(target, overlay);
         });
-        tooltip.hide();
+        this.dismissTooltip();
     }
 
     recheckAll() {
@@ -261,11 +267,18 @@ class OverlayManager {
                 e.stopPropagation();
                 e.preventDefault();
 
+                // Toggle Logic
+                if (this.activeErrorSpan === span && tooltip.isVisible()) {
+                    this.dismissTooltip();
+                    return;
+                }
+
                 const suggestions = err.suggestions || err.replacements || [];
                 // Word for actions is either the error word or the text content
                 const wordForAction = err.word || errorText;
 
                 const rect = span.getBoundingClientRect();
+                this.activeErrorSpan = span;
 
                 // Show tooltip with enhanced callbacks
                 tooltip.show(
@@ -274,14 +287,17 @@ class OverlayManager {
                     suggestions,
                     (replacement) => {
                         this.replaceText(target, err.index, err.length, replacement);
+                        this.activeErrorSpan = null;
                     },
                     (wordToIgnore) => {
                         spellChecker.ignoreWord(wordToIgnore);
                         this.checkInput(target); // Re-check to remove highlight
+                        this.activeErrorSpan = null;
                     },
                     (wordToAdd) => {
                         spellChecker.addToDictionary(wordToAdd);
                         this.checkInput(target); // Re-check to remove highlight
+                        this.activeErrorSpan = null;
                     },
                     wordForAction
                 );
