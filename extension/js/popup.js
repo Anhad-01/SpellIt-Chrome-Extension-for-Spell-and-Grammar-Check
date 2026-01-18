@@ -30,7 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     enableAdvancedGrammar.addEventListener('change', () => {
-        const enableAdvancedGrammar = document.getElementById('enableAdvancedGrammar').checked;
-        chrome.storage.local.set({ enableAdvancedGrammar });
+        const isAdvancedEnabled = enableAdvancedGrammar.checked;
+        const updates = { enableAdvancedGrammar: isAdvancedEnabled };
+
+        if (isAdvancedEnabled && !enableToggle.checked) {
+            enableToggle.checked = true;
+            updates.enabled = true;
+        }
+
+        chrome.storage.local.set(updates);
     });
 });
