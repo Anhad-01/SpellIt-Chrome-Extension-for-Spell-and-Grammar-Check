@@ -43,21 +43,46 @@ SpellIt makes **zero network requests**.
 
 ## Installation
 
-1.  Clone or download this repository.
+1.  **Get the Source Code**:
+    *   **Clone via Git**:
+        ```bash
+        git clone https://github.com/Anhad-01/SpellIt-Chrome-Extension-for-Spell-and-Grammar-Check.git
+        ```
+    *   **Or Download ZIP**: Click "Code" > "Download ZIP" on GitHub and extract it.
 2.  Open Chrome and navigate to `chrome://extensions`.
 3.  Enable **Developer mode** (toggle in the top right).
 4.  Click **Load unpacked**.
-5.  Select the `extension` folder from this project.
+5.  Select the `extension` folder from inside the downloaded project directory.
 
 ### Setting up Local LanguageTool
-1.  Download the **LanguageTool Desktop** or **Server** (`.jar`).
-2.  Run the server:
+This extension communicates with a locally running LanguageTool server for advanced grammar checks. You can run this server via the Desktop App (GUI) or the Command Line (CLI).
+
+#### Step 1: Download LanguageTool
+*   **For Desktop App (Mac/Windows)**: Download from [languagetool.org](https://languagetool.org/).
+*   **For CLI Server**: Download the standalone usage ZIP (e.g., `LanguageTool-6.x.zip`) from [languagetool.org/download/LanguageTool-stable.zip](https://languagetool.org/download/LanguageTool-stable.zip).
+
+#### Step 2: Run the Server
+
+**Option A: Using LanguageTool Desktop App (GUI)**
+1.  Open the LanguageTool application.
+2.  Go to **Settings**.
+3.  In the "General" or "Experimental" tab (depending on version), look for "Local Server".
+4.  Check **Enable Local Server**.
+5.  Ensure the port is set to **8081**.
+
+**Option B: Using Command Line (CLI)**
+1.  Extract the downloaded ZIP file.
+2.  Open a terminal in the folder containing `languagetool-server.jar`.
+3.  Run the following command:
     ```bash
     java -cp languagetool-server.jar org.languagetool.server.HTTPServer --port 8081 --allow-origin "*"
     ```
-    *Ensure it's running on port 8081.*
-3.  In the SpellIt extension popup, enable **Advanced Grammar**.
-4.  Focus any text field, type, and click the **Check Grammar** button to verify.
+    *(Requires Java to be installed)*
+
+#### Step 3: Enable in Extension
+1.  Open the SpellIt extension popup.
+2.  Toggle **Advanced Grammar (LT)** to ON.
+3.  Focus any text field on a webpage and click the "Check Grammar" button to verify.
 
 ## Architecture
 
