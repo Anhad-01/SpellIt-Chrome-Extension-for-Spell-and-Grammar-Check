@@ -5,7 +5,8 @@ class Rules {
             this.checkRepeatedWords,
             this.checkCapitalization,
             this.checkContractions,
-            this.checkArticles
+            this.checkArticles,
+            this.checkLowercaseI
         ];
 
         this.contractionsMap = {
@@ -134,12 +135,6 @@ class Rules {
             const isA = article.toLowerCase() === 'a';
             const isAn = article.toLowerCase() === 'an';
 
-            // Exception: 'hour' starts with vowel sound (an)
-            // 'university' starts with consonant sound (a)
-            // For this basic version, we stick to requested simple vowel check but maybe add common exceptions if requested.
-            // Requirement said: "Base detection on the starting sound approximation (vowels vs consonants)"
-            // "Limit scope to clear, obvious cases"
-
             let suggestion = null;
 
             if (isA && startsWithVowel) {
@@ -163,6 +158,25 @@ class Rules {
                     suggestions: [suggestion]
                 });
             }
+        }
+        return errors;
+    }
+
+    checkLowercaseI(text) {
+        // Matches solitary "i" surrounded by word boundaries
+        const regex = /\b(i)\b/g;
+        let match;
+        const errors = [];
+
+        while ((match = regex.exec(text)) !== null) {
+            errors.push({
+                type: 'grammar',
+                rule: 'Capitalization',
+                message: "The pronoun 'I' should be capitalized.",
+                index: match.index,
+                length: 1,
+                suggestions: ['I']
+            });
         }
         return errors;
     }

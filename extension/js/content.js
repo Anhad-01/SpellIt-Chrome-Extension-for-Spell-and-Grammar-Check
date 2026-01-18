@@ -15,6 +15,11 @@ const initExtension = async () => {
     const lang = stored.language || 'en_US';
     await spellChecker.init(lang);
 
+    // Check Advanced Grammar
+    if (stored.enableAdvancedGrammar) {
+        overlayManager.enableAdvancedGrammar(true);
+    }
+
     // Start observing
     overlayManager.start();
 };
@@ -36,16 +41,24 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
                 overlayManager.recheckAll();
             });
         }
+        if (changes.enableAdvancedGrammar) {
+            overlayManager.enableAdvancedGrammar(changes.enableAdvancedGrammar.newValue);
+        }
     }
 });
 
 class OverlayManager {
     constructor() {
         this.overlays = new Map(); // Target element -> Overlay element
+        this.ltErrors = new Map(); // Target element -> Array of LT errors
         this.debouncedCheck = this.debounce(this.checkInput.bind(this), 500);
         this.observer = null;
         this.activeTarget = null;
         this.activeErrorSpan = null; // Track currently active error
+
+        this.isAdvancedGrammarEnabled = false;
+        this.ltService = new LanguageToolService();
+        this.triggerBtn = null;
     }
 
     start() {
@@ -113,6 +126,7 @@ class OverlayManager {
         this.activeTarget = target;
         this.createOrUpdateOverlay(target);
         this.checkInput(target);
+        this.injectTriggerButton(target);
     }
 
     handleInput(target) {
@@ -121,6 +135,9 @@ class OverlayManager {
 
         // Dismiss tooltip on edit
         this.dismissTooltip();
+
+        // Clear LT errors on edit to prevent stale offsets
+        this.ltErrors.delete(target);
 
         this.updateOverlayContent(target);
         this.debouncedCheck(target);
@@ -133,6 +150,7 @@ class OverlayManager {
             overlay.scrollLeft = target.scrollLeft;
         }
         this.dismissTooltip(); // Dismiss on scroll
+        this.repositionTriggerButton();
     }
 
     repositionAll() {
@@ -140,6 +158,7 @@ class OverlayManager {
             this.syncStyles(target, overlay);
         });
         this.dismissTooltip();
+        this.repositionTriggerButton();
     }
 
     recheckAll() {
@@ -225,7 +244,22 @@ class OverlayManager {
         const grammarErrors = grammarRules.check(text);
         errors = errors.concat(grammarErrors);
 
-        errors.sort((a, b) => a.index - b.index);
+        const ltErrors = this.ltErrors.get(target) || [];
+        errors = errors.concat(ltErrors);
+
+        // Prioritize grammar errors (including LT) over spelling errors when they overlap
+        errors.sort((a, b) => {
+            if (a.index !== b.index) {
+                return a.index - b.index;
+            }
+            // If indices are equal, prioritize non-spelling (grammar)
+            const aIsSpelling = a.type === 'spelling';
+            const bIsSpelling = b.type === 'spelling';
+
+            if (aIsSpelling && !bIsSpelling) return 1;
+            if (!aIsSpelling && bIsSpelling) return -1;
+            return 0; // maintain relative order otherwise
+        });
 
         const uniqueErrors = [];
         let lastEnd = -1;
@@ -259,6 +293,8 @@ class OverlayManager {
 
             if (err.type === 'spelling') {
                 span.className = 'spellit-error';
+            } else if (err.type === 'grammar-lt') {
+                span.className = 'spellit-lt-error';
             } else {
                 span.className = 'spellit-grammar-error';
             }
@@ -276,6 +312,7 @@ class OverlayManager {
                 const suggestions = err.suggestions || err.replacements || [];
                 // Word for actions is either the error word or the text content
                 const wordForAction = err.word || errorText;
+                const label = err.type === 'grammar-lt' ? 'Grammar' : null;
 
                 const rect = span.getBoundingClientRect();
                 this.activeErrorSpan = span;
@@ -288,18 +325,35 @@ class OverlayManager {
                     (replacement) => {
                         this.replaceText(target, err.index, err.length, replacement);
                         this.activeErrorSpan = null;
+                        this.ltErrors.delete(target); // Clear LT errors after fix to force re-check
                     },
                     (wordToIgnore) => {
-                        spellChecker.ignoreWord(wordToIgnore);
+                        if (err.type === 'spelling') {
+                            spellChecker.ignoreWord(wordToIgnore);
+                        }
+                        // For grammar, ignore just removes the error from view?
+                        // Or we need an ignore list. Logic for grammar ignore is implicit 
+                        // if we re-check and it persists. 
+                        // For LT, we'd need to ignore rule, but simple "Ignore" 
+                        // could just remove this error instance from our local list.
+                        if (err.type === 'grammar-lt') {
+                            const currentErrors = this.ltErrors.get(target) || [];
+                            const newErrors = currentErrors.filter(e => e !== err);
+                            this.ltErrors.set(target, newErrors);
+                        }
+
                         this.checkInput(target); // Re-check to remove highlight
                         this.activeErrorSpan = null;
                     },
                     (wordToAdd) => {
-                        spellChecker.addToDictionary(wordToAdd);
+                        if (err.type === 'spelling') {
+                            spellChecker.addToDictionary(wordToAdd);
+                        }
                         this.checkInput(target); // Re-check to remove highlight
                         this.activeErrorSpan = null;
                     },
-                    wordForAction
+                    wordForAction,
+                    label
                 );
             });
 
@@ -328,6 +382,134 @@ class OverlayManager {
         target.dispatchEvent(event);
 
         target.focus();
+    }
+
+    enableAdvancedGrammar(enabled) {
+        this.isAdvancedGrammarEnabled = enabled;
+        if (enabled && this.activeTarget) {
+            this.injectTriggerButton(this.activeTarget);
+        } else {
+            this.removeTriggerButton();
+            this.ltErrors.clear();
+            this.recheckAll();
+        }
+    }
+
+    repositionTriggerButton() {
+        if (!this.triggerBtn || !this.activeTarget) return;
+
+        try {
+            const rect = this.activeTarget.getBoundingClientRect();
+            const scrollY = window.scrollY;
+            const scrollX = window.scrollX;
+
+            this.triggerBtn.style.top = (rect.top + scrollY + 4) + 'px';
+            this.triggerBtn.style.left = (rect.right + scrollX - 100) + 'px';
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    injectTriggerButton(target) {
+        this.removeTriggerButton();
+        if (!this.isAdvancedGrammarEnabled) return;
+
+        // Only inject if target is active
+        if (document.activeElement !== target) return;
+
+        const btn = document.createElement('button');
+        btn.textContent = 'Check Grammar';
+        btn.className = 'spellit-trigger-btn';
+
+        try {
+            const rect = target.getBoundingClientRect();
+            const scrollY = window.scrollY;
+            const scrollX = window.scrollX;
+
+            // Position: Top Right
+            btn.style.top = (rect.top + scrollY + 4) + 'px';
+            btn.style.left = (rect.right + scrollX - 100) + 'px'; // approx offset
+
+            // Re-adjust on resize/scroll
+        } catch (e) {
+            return;
+        }
+
+        btn.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent focus loss
+            e.stopPropagation();
+            this.handleTriggerClick(target);
+        });
+
+        document.body.appendChild(btn);
+        this.triggerBtn = btn;
+    }
+
+    removeTriggerButton() {
+        if (this.triggerBtn) {
+            this.triggerBtn.remove();
+            this.triggerBtn = null;
+        }
+    }
+
+    async handleTriggerClick(target) {
+        if (!this.triggerBtn) return;
+        const originalText = this.triggerBtn.textContent;
+        this.triggerBtn.textContent = 'Checking...';
+        this.triggerBtn.disabled = true;
+
+        const text = target.value;
+        const cursorIndex = target.selectionStart || 0;
+
+        const sentenceObj = this.extractSentence(text, cursorIndex);
+
+        this.ltService.checkGrammar(sentenceObj.text, (err, matches) => {
+            if (this.triggerBtn) {
+                this.triggerBtn.textContent = originalText;
+                this.triggerBtn.disabled = false;
+            }
+
+            if (err) {
+                // Determine unavailability
+                const rect = this.triggerBtn ? this.triggerBtn.getBoundingClientRect() : target.getBoundingClientRect();
+                tooltip.show(
+                    rect.left,
+                    rect.bottom + 5,
+                    [],
+                    () => { },
+                    () => { },
+                    () => { },
+                    '',
+                    'Unavailable via LT'
+                );
+                return;
+            }
+
+            // Adjust offsets
+            const adjustedMatches = matches.map(m => ({
+                ...m,
+                index: m.offset + sentenceObj.start
+            }));
+
+            this.ltErrors.set(target, adjustedMatches);
+            this.checkInput(target);
+        });
+    }
+
+    extractSentence(text, cursorIndex) {
+        if (window.Intl && Intl.Segmenter) {
+            const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
+            const segments = Array.from(segmenter.segment(text));
+            const activeSegment = segments.find(seg => cursorIndex >= seg.index && cursorIndex < seg.index + seg.segment.length);
+            // Handling cursor exactly at end of text might fail above find logic if strictly <, so standard use <= or fallback
+            // Actually Segmenter includes end.
+            if (activeSegment) {
+                return { text: activeSegment.segment, start: activeSegment.index };
+            }
+        }
+
+        // Fallback or if cursor at end
+        return { text: text, start: 0 };
     }
 }
 
