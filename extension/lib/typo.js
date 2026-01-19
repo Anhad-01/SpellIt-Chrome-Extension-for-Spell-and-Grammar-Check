@@ -52,7 +52,6 @@ var Typo;
         this.loaded = false;
         var self = this;
         var path;
-        // Loop-control variables.
         var i, j, _len, _jlen;
         if (dictionary) {
             self.dictionary = dictionary;
@@ -60,7 +59,6 @@ var Typo;
             if (affData && wordsData) {
                 setup();
             }
-            // Loading data for browser extentions.
             else if (typeof window !== 'undefined' && ((window.chrome && window.chrome.runtime) || (window.browser && window.browser.runtime))) {
                 var runtime = window.chrome && window.chrome.runtime ? window.chrome.runtime : window.browser.runtime;
                 if (settings.dictionaryPath) {
@@ -74,7 +72,6 @@ var Typo;
                 if (!wordsData)
                     readDataFile(runtime.getURL(path + "/" + dictionary + "/" + dictionary + ".dic"), setWordsData);
             }
-            // Loading data for Node.js or other environments.
             else {
                 if (settings.dictionaryPath) {
                     path = settings.dictionaryPath;
@@ -116,7 +113,6 @@ var Typo;
         }
         function setup() {
             self.rules = self._parseAFF(affData);
-            // Save the rule codes that are used in compound rules.
             self.compoundRuleCodes = {};
             for (i = 0, _len = self.compoundRules.length; i < _len; i++) {
                 var rule = self.compoundRules[i];
@@ -124,22 +120,15 @@ var Typo;
                     self.compoundRuleCodes[rule[j]] = [];
                 }
             }
-            // If we add this ONLYINCOMPOUND flag to self.compoundRuleCodes, then _parseDIC
-            // will do the work of saving the list of words that are compound-only.
             if ("ONLYINCOMPOUND" in self.flags) {
                 self.compoundRuleCodes[self.flags.ONLYINCOMPOUND] = [];
             }
             self.dictionaryTable = self._parseDIC(wordsData);
-            // Get rid of any codes from the compound rule codes that are never used
-            // (or that were special regex characters).  Not especially necessary...
             for (i in self.compoundRuleCodes) {
                 if (self.compoundRuleCodes[i].length === 0) {
                     delete self.compoundRuleCodes[i];
                 }
             }
-            // Build the full regular expressions for each compound rule.
-            // I have a feeling (but no confirmation yet) that this method of
-            // testing for compound words is probably slow.
             for (i = 0, _len = self.compoundRules.length; i < _len; i++) {
                 var ruleText = self.compoundRules[i];
                 var expressionText = "";
@@ -215,7 +204,6 @@ var Typo;
                 }
             }
             else if (typeof require !== 'undefined') {
-                // Node.js
                 var fs = require("fs");
                 try {
                     if (fs.existsSync(path)) {
@@ -244,7 +232,6 @@ var Typo;
             var i, j, _len, _jlen;
             var lines = data.split(/\r?\n/);
             for (i = 0, _len = lines.length; i < _len; i++) {
-                // Remove comment lines
                 line = this._removeAffixComments(lines[i]);
                 line = line.trim();
                 if (!line) {
@@ -309,26 +296,18 @@ var Typo;
                     }
                 }
                 else {
-                    // ONLYINCOMPOUND
-                    // COMPOUNDMIN
-                    // FLAG
-                    // KEEPCASE
-                    // NEEDAFFIX
+
                     this.flags[ruleType] = definitionParts[1];
                 }
             }
             return rules;
         },
         /**
-         * Removes comments.
          *
          * @param {string} data A line from an affix file.
          * @return {string} The cleaned-up line.
          */
         _removeAffixComments: function (line) {
-            // This used to remove any string starting with '#' up to the end of the line,
-            // but some COMPOUNDRULE definitions include '#' as part of the rule.
-            // So, only remove lines that begin with a comment, optionally preceded by whitespace.
             if (line.match(/^\s*#/)) {
                 return '';
             }
@@ -346,7 +325,6 @@ var Typo;
             var lines = data.split(/\r?\n/);
             var dictionaryTable = {};
             function addWord(word, rules) {
-                // Some dictionaries will list the same word multiple times with different rule sets.
                 if (!dictionaryTable.hasOwnProperty(word)) {
                     dictionaryTable[word] = null;
                 }
@@ -357,30 +335,16 @@ var Typo;
                     dictionaryTable[word].push(rules);
                 }
             }
-            // The first line is the number of words in the dictionary.
             for (var i = 1, _len = lines.length; i < _len; i++) {
                 var line = lines[i];
                 if (!line) {
-                    // Ignore empty lines.
                     continue;
                 }
-                // The line format is one of:
-                //     word
-                //     word/flags
-                //     word/flags xx:abc yy:def
-                //     word xx:abc yy:def
-                // We don't use the morphological flags (xx:abc, yy:def) and we don't want them included
-                // in the extracted flags.
                 var just_word_and_flags = line.replace(/\s.*$/, '');
-                // just_word_and_flags is definitely one of:
-                //     word
-                //     word/flags
                 var parts = just_word_and_flags.split('/', 2);
                 var word = parts[0];
-                // Now for each affix rule, generate that form of the word.
                 if (parts.length > 1) {
                     var ruleCodesArray = this.parseRuleCodes(parts[1]);
-                    // Save the ruleCodes for compound word situations.
                     if (!("NEEDAFFIX" in this.flags) || ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1) {
                         addWord(word, ruleCodesArray);
                     }
@@ -421,15 +385,11 @@ var Typo;
             return dictionaryTable;
         },
         /**
-         * Removes comment lines and then cleans up blank lines and trailing whitespace.
-         *
          * @param {string} data The data from a .dic file.
          * @return {string} The cleaned-up data.
          */
         _removeDicComments: function (data) {
-            // I can't find any official documentation on it, but at least the de_DE
-            // dictionary uses tab-indented lines as comments.
-            // Remove comments
+
             data = data.replace(/^\t.*$/mg, "");
             return data;
         },
@@ -438,11 +398,9 @@ var Typo;
                 return [];
             }
             else if (!("FLAG" in this.flags)) {
-                // The flag symbols are single characters
                 return textCodes.split("");
             }
             else if (this.flags.FLAG === "long") {
-                // The flag symbols are two characters long.
                 var flags = [];
                 for (var i = 0, _len = textCodes.length; i < _len; i += 2) {
                     flags.push(textCodes.substr(i, 2));
@@ -450,17 +408,12 @@ var Typo;
                 return flags;
             }
             else if (this.flags.FLAG === "num") {
-                // The flag symbols are a CSV list of numbers.
                 return textCodes.split(",");
             }
             else if (this.flags.FLAG === "UTF-8") {
-                // The flags are single UTF-8 characters.
-                // @see https://github.com/cfinke/Typo.js/issues/57
                 return Array.from(textCodes);
             }
             else {
-                // It's possible that this fallback case will not work for all FLAG values,
-                // but I think it's more likely to work than not returning anything at all.
                 return textCodes.split("");
             }
         },
@@ -494,13 +447,6 @@ var Typo;
                             if (continuationRule) {
                                 newWords = newWords.concat(this._applyRule(newWord, continuationRule));
                             }
-                            /*
-                            else {
-                                // This shouldn't happen, but it does, at least in the de_DE dictionary.
-                                // I think the author mistakenly supplied lower-case rule codes instead
-                                // of upper-case.
-                            }
-                            */
                         }
                     }
                 }
@@ -524,38 +470,29 @@ var Typo;
             if (!aWord) {
                 return false;
             }
-            // Remove leading and trailing whitespace
             var trimmedWord = aWord.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
             if (this.checkExact(trimmedWord)) {
                 return true;
             }
             // The exact word is not in the dictionary.
             if (trimmedWord.toUpperCase() === trimmedWord) {
-                // The word was supplied in all uppercase.
-                // Check for a capitalized form of the word.
                 var capitalizedWord = trimmedWord[0] + trimmedWord.substring(1).toLowerCase();
                 if (this.hasFlag(capitalizedWord, "KEEPCASE")) {
-                    // Capitalization variants are not allowed for this word.
                     return false;
                 }
                 if (this.checkExact(capitalizedWord)) {
-                    // The all-caps word is a capitalized word spelled correctly.
                     return true;
                 }
                 if (this.checkExact(trimmedWord.toLowerCase())) {
-                    // The all-caps is a lowercase word spelled correctly.
                     return true;
                 }
             }
             var uncapitalizedWord = trimmedWord[0].toLowerCase() + trimmedWord.substring(1);
             if (uncapitalizedWord !== trimmedWord) {
                 if (this.hasFlag(uncapitalizedWord, "KEEPCASE")) {
-                    // Capitalization variants are not allowed for this word.
                     return false;
                 }
-                // Check for an uncapitalized form
                 if (this.checkExact(uncapitalizedWord)) {
-                    // The word is spelled correctly but with the first letter capitalized.
                     return true;
                 }
             }
@@ -574,7 +511,6 @@ var Typo;
             var ruleCodes = this.dictionaryTable[word];
             var i, _len;
             if (typeof ruleCodes === 'undefined') {
-                // Check if this might be a compound word.
                 if ("COMPOUNDMIN" in this.flags && word.length >= this.flags.COMPOUNDMIN) {
                     for (i = 0, _len = this.compoundRules.length; i < _len; i++) {
                         if (word.match(this.compoundRules[i])) {
@@ -584,11 +520,9 @@ var Typo;
                 }
             }
             else if (ruleCodes === null) {
-                // a null (but not undefined) value for an entry in the dictionary table
-                // means that the word is in the dictionary but has no flags.
                 return true;
             }
-            else if (typeof ruleCodes === 'object') { // this.dictionary['hasOwnProperty'] will be a function.
+            else if (typeof ruleCodes === 'object') {
                 for (i = 0, _len = ruleCodes.length; i < _len; i++) {
                     if (!this.hasFlag(word, "ONLYINCOMPOUND", ruleCodes[i])) {
                         return true;
@@ -644,7 +578,6 @@ var Typo;
             }
             if (this.check(word))
                 return [];
-            // Check the replacement table.
             for (var i = 0, _len = this.replacementTable.length; i < _len; i++) {
                 var replacementEntry = this.replacementTable[i];
                 if (word.indexOf(replacementEntry[0]) !== -1) {
@@ -655,20 +588,12 @@ var Typo;
                 }
             }
             if (!this.alphabet) {
-                // Use the English alphabet as the default. Problematic, but backwards-compatible.
-                this.alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                // Any characters defined in the affix file as substitutions can go in the alphabet too.
-                // Note that dictionaries do not include the entire alphabet in the TRY flag when it's there.
-                // For example, Q is not in the default English TRY list; that's why having the default
-                // alphabet above is useful.
                 if ('TRY' in this.flags) {
                     this.alphabet += this.flags['TRY'];
                 }
-                // Plus any additional characters specifically defined as being allowed in words.
                 if ('WORDCHARS' in this.flags) {
                     this.alphabet += this.flags['WORDCHARS'];
                 }
-                // Remove any duplicates.
                 var alphaArray = this.alphabet.split("");
                 alphaArray.sort();
                 var alphaHash = {};
@@ -707,8 +632,6 @@ var Typo;
                                 }
                             }
                         }
-                        // Transpose letters
-                        // Eliminate transpositions of identical letters
                         if (s[1].length > 1 && s[1][1] !== s[1][0]) {
                             _edit = s[0] + s[1][1] + s[1][0] + s[1].substring(2);
                             if (!known_only || self.check(_edit)) {
@@ -721,15 +644,12 @@ var Typo;
                             }
                         }
                         if (s[1]) {
-                            // Replace a letter with another letter.
                             var lettercase = (s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1)) ? 'uppercase' : 'lowercase';
                             for (j = 0; j < alphabetLength; j++) {
                                 var replacementLetter = self.alphabet[j];
-                                // Set the case of the replacement letter to the same as the letter being replaced.
                                 if ('uppercase' === lettercase) {
                                     replacementLetter = replacementLetter.toUpperCase();
                                 }
-                                // Eliminate replacement of a letter by itself
                                 if (replacementLetter != s[1].substring(0, 1)) {
                                     _edit = s[0] + replacementLetter + s[1].substring(1);
                                     if (!known_only || self.check(_edit)) {
@@ -744,9 +664,7 @@ var Typo;
                             }
                         }
                         if (s[1]) {
-                            // Add a letter between each letter.
                             for (j = 0; j < alphabetLength; j++) {
-                                // If the letters on each side are capitalized, capitalize the replacement.
                                 var lettercase = (s[0].substring(-1).toUpperCase() === s[0].substring(-1) && s[1].substring(0, 1).toUpperCase() === s[1].substring(0, 1)) ? 'uppercase' : 'lowercase';
                                 var replacementLetter = self.alphabet[j];
                                 if ('uppercase' === lettercase) {
@@ -769,10 +687,8 @@ var Typo;
             }
             function correct(word) {
                 var _a;
-                // Get the edit-distance-1 and edit-distance-2 forms of this word.
                 var ed1 = edits1((_a = {}, _a[word] = true, _a));
                 var ed2 = edits1(ed1, true);
-                // Sort the edits based on how many different ways they were created.
                 var weighted_corrections = ed2;
                 for (var ed1word in ed1) {
                     if (!self.check(ed1word)) {
@@ -790,13 +706,6 @@ var Typo;
                 for (i in weighted_corrections) {
                     if (weighted_corrections.hasOwnProperty(i)) {
                         if (self.hasFlag(i, "PRIORITYSUGGEST")) {
-                            // We've defined a new affix rule called PRIORITYSUGGEST, indicating that
-                            // if this word is in the suggestions list for a misspelled word, it should
-                            // be given priority over other suggestions.
-                            //
-                            // Add a large number to its weight to push it to the top of the list.
-                            // If multiple priority suggestions are in the list, they'll still be ranked
-                            // against each other, but they'll all be above non-priority suggestions.
                             weighted_corrections[i] += 1000;
                         }
                         sorted_corrections.push([i, weighted_corrections[i]]);
@@ -811,7 +720,6 @@ var Typo;
                     else if (a_val > b_val) {
                         return 1;
                     }
-                    // @todo If a and b are equally weighted, add our own weight based on something like the key locations on this language's default keyboard.
                     return b[0].localeCompare(a[0]);
                 }
                 sorted_corrections.sort(sorter).reverse();
@@ -835,7 +743,6 @@ var Typo;
                         rv.push(sorted_corrections[i][0]);
                     }
                     else {
-                        // If one of the corrections is not eligible as a suggestion , make sure we still return the right number of suggestions.
                         working_limit++;
                     }
                 }
@@ -849,7 +756,6 @@ var Typo;
         }
     };
 })();
-// Support for use as a node.js module.
 if (typeof module !== 'undefined') {
     module.exports = Typo;
 }
